@@ -52,16 +52,17 @@ buildViaSubstitute use-a-more-outputs^first
 
 delete
 
+# Failure with 2.34 encountered in CI
+requireDaemonNewerThan "2.34"
 
-# FIXME
-# # Substitue just the first output
-# #
-# # This derivation is the same after normalization, so we should get
-# # early cut-off, and thus a chance to download just the output we want
-# # rather than building more
-# buildViaSubstitute use-a-prime-more-outputs^first
+# Substitue just the first output
+#
+# This derivation is the same after normalization, so we should get
+# early cut-off, and thus a chance to download just the output we want
+# rather than building more
+buildViaSubstitute use-a-prime-more-outputs^first
 
-# # Should only fetch the output we asked for
-# [[ -d "$(jq -r <"$TEST_ROOT"/a.json '.[0].outputs.out')" ]]
-# [[ -f "$(jq -r <"$TEST_ROOT"/a.json '.[2].outputs.first')" ]]
-# [[ ! -e "$(jq -r <"$TEST_ROOT"/a.json '.[2].outputs.second')" ]]
+# Should only fetch the output we asked for
+[[ -d "$(jq -r <"$TEST_ROOT"/a.json '.[0].outputs.out')" ]]
+[[ -f "$(jq -r <"$TEST_ROOT"/a.json '.[2].outputs.first')" ]]
+[[ ! -e "$(jq -r <"$TEST_ROOT"/a.json '.[2].outputs.second')" ]]
