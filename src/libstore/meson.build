@@ -241,9 +241,15 @@ endforeach
 
 # sysconfdir doesn't get anything installed to directly, and is only used to
 # tell Nix where to look for nix.conf, so it doesn't get appended to prefix.
-sysconfdir = get_option('sysconfdir')
-if not fs.is_absolute(sysconfdir)
-  sysconfdir = '/' / sysconfdir
+if host_machine.system() == 'windows'
+  # Hardcode on windows. Any other value doesn't make much sense since windows
+  # has this hardcoded as well since Windows Vista: https://learn.microsoft.com/en-us/windows/win32/shell/knownfolderid
+  sysconfdir = 'C:\\ProgramData'
+else
+  sysconfdir = get_option('sysconfdir')
+  if not fs.is_absolute(sysconfdir)
+    sysconfdir = '/' / sysconfdir
+  endif
 endif
 
 # Aside from prefix itself, each of these was made into an absolute path
