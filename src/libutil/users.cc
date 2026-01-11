@@ -1,8 +1,77 @@
 #include "nix/util/util.hh"
 #include "nix/util/users.hh"
+#include "nix/util/environment-variables.hh"
 #include "nix/util/file-system.hh"
 
+#ifndef _WIN32
+#  include "unix/xdg-dirs.hh"
+#else
+#  include "windows/known-folders.hh"
+#endif
+
 namespace nix {
+
+std::filesystem::path getCacheDir()
+{
+    auto dir = getEnv("NIX_CACHE_HOME");
+    if (dir)
+        return *dir;
+#ifndef _WIN32
+    return unix::xdg::getCacheHome() / "nix";
+#else
+    return windows::known_folders::getLocalAppData() / "nix" / "cache";
+#endif
+}
+
+std::filesystem::path getConfigDir()
+{
+    auto dir = getEnv("NIX_CONFIG_HOME");
+    if (dir)
+        return *dir;
+#ifndef _WIN32
+    return unix::xdg::getConfigHome() / "nix";
+#else
+    return windows::known_folders::getRoamingAppData() / "nix" / "config";
+#endif
+}
+
+std::vector<std::filesystem::path> getConfigDirs()
+{
+    std::filesystem::path configHome = getConfigDir();
+    std::vector<std::filesystem::path> result;
+    result.push_back(configHome);
+#ifndef _WIN32
+    auto xdgConfigDirs = unix::xdg::getConfigDirs();
+    for (auto & dir : xdgConfigDirs) {
+        result.push_back(dir / "nix");
+    }
+#endif
+    return result;
+}
+
+std::filesystem::path getDataDir()
+{
+    auto dir = getEnv("NIX_DATA_HOME");
+    if (dir)
+        return *dir;
+#ifndef _WIN32
+    return unix::xdg::getDataHome() / "nix";
+#else
+    return windows::known_folders::getLocalAppData() / "nix" / "data";
+#endif
+}
+
+std::filesystem::path getStateDir()
+{
+    auto dir = getEnv("NIX_STATE_HOME");
+    if (dir)
+        return *dir;
+#ifndef _WIN32
+    return unix::xdg::getStateHome() / "nix";
+#else
+    return windows::known_folders::getLocalAppData() / "nix" / "state";
+#endif
+}
 
 std::filesystem::path createNixStateDir()
 {
