@@ -19,6 +19,8 @@
 #include "nix/store/filetransfer.hh"
 #include "nix/util/signals.hh"
 
+#include <boost/context/detail/exception.hpp>
+
 #ifndef _WIN32
 #  include <sys/socket.h>
 #endif
@@ -141,7 +143,7 @@ void RemoteStore::setOptions(Connection & conn)
 
 RemoteStore::ConnectionHandle::~ConnectionHandle()
 {
-    if (!daemonException && std::uncaught_exceptions()) {
+    if (!daemonException && !forcedUnwind && std::uncaught_exceptions()) {
         handle.markBad();
         debug("closing daemon connection because of an exception");
     }
@@ -155,6 +157,27 @@ void RemoteStore::ConnectionHandle::processStderr(Sink * sink, Source * source, 
 RemoteStore::ConnectionHandle RemoteStore::getConnection()
 {
     return ConnectionHandle(connections->get());
+}
+
+void RemoteStore::withConnection(std::function<void(ConnectionHandle &)> fun)
+{
+    ConnectionHandle conn(getConnection());
+
+    try {
+        return fun(conn);
+    } catch (boost::context::detail::forced_unwind &) {
+        /* This exception gets thrown when the function is called as
+           a stackful coroutine. ConnectionHandle interprets any in-flight
+           exceptions (that are not daemonException) as failures. This leads
+           to the connection being marked as bad when unhandled. Record this
+           here, so ~ConnectionHandle can skip marking the connection as bad
+           so we don't churn the connection pool (which has to re-establish the
+           connection each time). */
+        conn.forcedUnwind = true;
+        throw;
+    } catch (...) {
+        throw;
+    }
 }
 
 void RemoteStore::setOptions()
@@ -819,8 +842,9 @@ void RemoteStore::shutdownConnections()
 
 void RemoteStore::narFromPath(const StorePath & path, Sink & sink)
 {
-    auto conn(getConnection());
-    conn->narFromPath(*this, &conn.daemonException, path, [&](Source & source) { copyNAR(conn->from, sink); });
+    withConnection([&](ConnectionHandle & conn) {
+        conn->narFromPath(*this, &conn.daemonException, path, [&](Source & source) { copyNAR(conn->from, sink); });
+    });
 }
 
 ref<RemoteFSAccessor> RemoteStore::getRemoteFSAccessor(bool requireValidPath)

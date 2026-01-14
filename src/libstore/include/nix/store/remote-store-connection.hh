@@ -34,6 +34,7 @@ struct RemoteStore::ConnectionHandle
 {
     Pool<RemoteStore::Connection>::Handle handle;
     bool daemonException = false;
+    bool forcedUnwind = false;
 
     ConnectionHandle(Pool<RemoteStore::Connection>::Handle && handle)
         : handle(std::move(handle))
